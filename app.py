@@ -152,7 +152,72 @@ def build_rows():
     return rows
 
 
-def run_action(rows, index):
+CONFIRMED_FILE = "confirmed_commands.json"
+
+
+def command_key(command_template):
+    """Stable identity for a menu entry's command, independent of which
+    workspace was clicked (before {cwd}/{workspace_id} substitution)."""
+    return json.dumps(command_template)
+
+
+def load_confirmed(config_dir):
+    if not config_dir:
+        return set()
+    try:
+        with open(
+            os.path.join(config_dir, CONFIRMED_FILE), "r", encoding="utf-8"
+        ) as handle:
+            return set(json.load(handle))
+    except (OSError, json.JSONDecodeError, TypeError):
+        return set()
+
+
+def record_confirmed(config_dir, key):
+    if not config_dir:
+        return
+    confirmed = load_confirmed(config_dir)
+    confirmed.add(key)
+    try:
+        with open(
+            os.path.join(config_dir, CONFIRMED_FILE), "w", encoding="utf-8"
+        ) as handle:
+            json.dump(sorted(confirmed), handle)
+    except OSError:
+        pass
+
+
+def show_run_confirm_prompt(stdscr, command):
+    """Shown the first time a specific menu command is about to run. Returns
+    False if the user cancelled instead of confirming."""
+    stdscr.erase()
+    stdscr.keypad(True)
+    stdscr.nodelay(False)
+    stdscr.timeout(-1)
+    try:
+        for i, line in enumerate(
+            [
+                "First time running this command:",
+                "",
+                "  " + " ".join(command),
+                "",
+                "Enter to run it (won't ask again for this exact command),",
+                "q to cancel.",
+            ]
+        ):
+            stdscr.addnstr(i, 0, line, max(stdscr.getmaxyx()[1] - 1, 0))
+        stdscr.refresh()
+        while True:
+            key = stdscr.getch()
+            if key in (10, 13, curses.KEY_ENTER):
+                return True
+            if key in (ord("q"), 27):
+                return False
+    finally:
+        stdscr.timeout(REFRESH_MS)
+
+
+def run_action(stdscr, config_dir, rows, index):
     if not 0 <= index < len(rows):
         return
     _label, values, command_template = rows[index]
@@ -166,66 +231,22 @@ def run_action(rows, index):
         part.replace("{cwd}", cwd or "").replace("{workspace_id}", workspace_id or "")
         for part in command_template
     ]
+
+    key = command_key(command_template)
+    if key not in load_confirmed(config_dir):
+        if not show_run_confirm_prompt(stdscr, command):
+            return
+        record_confirmed(config_dir, key)
+
     try:
         subprocess.run(command)
     except Exception:
         pass  # a launch failure should never take the panel down
 
 
-CONSENT_MARKER = ".consented"
-
-
-def has_consented(config_dir):
-    if not config_dir:
-        return True  # nowhere to persist consent; don't block on it
-    return os.path.isfile(os.path.join(config_dir, CONSENT_MARKER))
-
-
-def record_consent(config_dir):
-    if not config_dir:
-        return
-    try:
-        with open(os.path.join(config_dir, CONSENT_MARKER), "w", encoding="utf-8"):
-            pass
-    except OSError:
-        pass
-
-
-def show_consent_prompt(stdscr):
-    """Shown once, before menu.json can ever run a command. Returns False if
-    the user quit instead of continuing."""
-    stdscr.erase()
-    stdscr.keypad(True)
-    stdscr.nodelay(False)
-    stdscr.timeout(-1)
-    for i, line in enumerate(
-        [
-            "Launcher Panel",
-            "",
-            "Clicking a row runs the command configured for it — instantly,",
-            "no confirmation. A misclick runs whatever's under the cursor.",
-            "menu.json is user-editable; treat it like a shell profile.",
-            "",
-            "This only shows once. Enter to continue, q to quit.",
-        ]
-    ):
-        stdscr.addstr(i, 0, line)
-    stdscr.refresh()
-    while True:
-        key = stdscr.getch()
-        if key in (10, 13, curses.KEY_ENTER):
-            return True
-        if key in (ord("q"), 27):
-            return False
-
-
 def main(stdscr):
     curses.curs_set(0)
     config_dir = os.environ.get("HERDR_PLUGIN_CONFIG_DIR")
-    if not has_consented(config_dir):
-        if not show_consent_prompt(stdscr):
-            return
-        record_consent(config_dir)
 
     curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
     print("\033[?1003h")  # ncurses' mousemask doesn't always push this itself
@@ -269,7 +290,7 @@ def main(stdscr):
                 clickable = 0 <= y < len(rows) and rows[y][2] is not None
                 hovered = y if clickable else None
                 if bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED):
-                    run_action(rows, y)
+                    run_action(stdscr, config_dir, rows, y)
                 continue
 
             if key == curses.KEY_UP:
@@ -277,7 +298,7 @@ def main(stdscr):
             elif key == curses.KEY_DOWN:
                 selected = min(len(rows) - 1, selected + 1)
             elif key in (10, 13, curses.KEY_ENTER):
-                run_action(rows, selected)
+                run_action(stdscr, config_dir, rows, selected)
     finally:
         print("\033[?1003l")  # stop reporting mouse motion on the way out
 

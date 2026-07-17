@@ -58,10 +58,12 @@ click time — useful for calling `herdr` itself, e.g.
 take effect within a few seconds, no reload needed. An invalid file falls
 back to the VS Code default and shows why at the top of the panel.
 
-`menu.json` runs whatever you put in it, no per-click confirmation — treat
-it like your shell profile, not a sandboxed setting. A misclick runs the
-row under the cursor immediately. The panel shows a one-time warning about
-this the very first time it opens; it won't ask again after that.
+`menu.json` runs whatever you put in it — treat it like your shell profile,
+not a sandboxed setting. The first time you click a given command (any
+workspace), the panel shows exactly what it's about to run and asks for
+confirmation; after that, that specific command runs immediately with no
+further prompt. Adding a new command to `menu.json` gets its own first-run
+confirmation, independent of ones you've already approved.
 
 ## Requirements
 
