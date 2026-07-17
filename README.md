@@ -1,10 +1,12 @@
 # herdr-launcher-panel
 
-A [Herdr](https://herdr.dev) plugin: a docked panel of commands you
-configure — "Open in Finder / Explorer" and VS Code ship as defaults, but
-any command works. Each is listed with every workspace nested under it;
-click one to run that command against that workspace, no command to
-remember or type.
+A [Herdr](https://herdr.dev) plugin: a docked panel that collects whatever
+commands you configure. "Open in Finder / Explorer" and VS Code are built
+in by default — add your own commands on top.
+
+Every workspace is listed nested under each command; click one to run it
+against that workspace. No more breaking away from your agent to open a
+separate window and remember or type out a command.
 
 ![Launcher panel example](assets/panel.png)
 
