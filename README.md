@@ -1,4 +1,4 @@
-# herdr-open-panel
+# herdr-launcher-panel
 
 A [Herdr](https://herdr.dev) plugin: a docked panel listing every workspace
 under "Open in Finder" / "Explorer" / "File Manager" and "Open in VS Code
@@ -6,10 +6,12 @@ under "Open in Finder" / "Explorer" / "File Manager" and "Open in VS Code
 dependencies beyond Python's standard library (`windows-curses` is installed
 automatically, Windows only).
 
+![Launcher panel example](assets/panel.png)
+
 ## Install
 
 ```bash
-herdr plugin install y-hirakaw/herdr-open-panel
+herdr plugin install y-hirakaw/herdr-launcher-panel
 ```
 
 ## Open the panel
@@ -20,7 +22,7 @@ Bind a key to the `open` action:
 [[keys.command]]
 key = "prefix+o"
 type = "plugin_action"
-command = "open-panel.open"
+command = "launcher-panel.open"
 description = "open Finder/VS Code panel"
 ```
 
@@ -37,7 +39,7 @@ yet.
 
 "Open in Finder/Explorer/File Manager" is fixed (there's only ever one per
 OS). Everything else comes from `menu.json` in the plugin's config directory
-(`herdr plugin config-dir open-panel`), seeded with a VS Code entry the
+(`herdr plugin config-dir launcher-panel`), seeded with a VS Code entry the
 first time the panel runs. Edit or replace it freely:
 
 ```json

@@ -1,8 +1,8 @@
-id = "open-panel"
-name = "Open Panel"
+id = "launcher-panel"
+name = "Launcher Panel"
 version = "0.1.0"
 min_herdr_version = "0.7.4"
-description = "Click-to-open Finder / Explorer / VS Code panel for Herdr workspaces, no keybinding to remember"
+description = "Click-to-launch Finder / Explorer / VS Code (and anything else you configure) per Herdr workspace, no keybinding to remember"
 platforms = ["macos", "windows", "linux"]
 
 [[build]]
@@ -10,8 +10,8 @@ command = ["python3", "-m", "pip", "install", "--user", "windows-curses"]
 platforms = ["windows"]
 
 [[panes]]
-id = "open-panel"
-title = "Open"
+id = "launcher"
+title = "Launcher"
 placement = "split"
 command = ["python3", "app.py"]
 
