@@ -125,9 +125,10 @@ CARD_WIDTH = 32
 
 
 def build_rows():
-    """Flat list of (label, cwd, command_template). cwd/command_template are
-    None for section headers, borders, and blank spacer rows, which aren't
-    clickable."""
+    """Flat list of (label, values, command_template). values/command_template
+    are None for section headers, borders, and blank spacer rows, which
+    aren't clickable. values is {"cwd": ..., "workspace_id": ...} otherwise —
+    both are available as {cwd}/{workspace_id} placeholders in commands."""
     workspaces = sorted(list_workspaces(), key=lambda w: w.get("number", 0))
     panes = list_panes()
     rows = []
@@ -140,10 +141,12 @@ def build_rows():
         header += "─" * max(CARD_WIDTH - len(header), 0)
         rows.append((header, None, None))
         for workspace in workspaces:
-            cwd = workspace_cwd(workspace["workspace_id"], panes)
-            label = workspace.get("label", workspace["workspace_id"])
+            workspace_id = workspace["workspace_id"]
+            cwd = workspace_cwd(workspace_id, panes)
+            label = workspace.get("label", workspace_id)
             marker = "● " if workspace.get("focused") else "  "
-            rows.append((f"│  {marker}{label}", cwd, entry["command"]))
+            values = {"cwd": cwd, "workspace_id": workspace_id}
+            rows.append((f"│  {marker}{label}", values, entry["command"]))
         rows.append(("╰" + "─" * (CARD_WIDTH - 1), None, None))
         rows.append(("", None, None))
     return rows
@@ -152,10 +155,17 @@ def build_rows():
 def run_action(rows, index):
     if not 0 <= index < len(rows):
         return
-    _label, cwd, command_template = rows[index]
-    if not cwd or not command_template:
+    _label, values, command_template = rows[index]
+    if not values or not command_template:
         return
-    command = [part.replace("{cwd}", cwd) for part in command_template]
+    cwd = values.get("cwd")
+    workspace_id = values.get("workspace_id")
+    if cwd is None and any("{cwd}" in part for part in command_template):
+        return  # command needs a cwd we couldn't resolve
+    command = [
+        part.replace("{cwd}", cwd or "").replace("{workspace_id}", workspace_id or "")
+        for part in command_template
+    ]
     try:
         subprocess.run(command)
     except Exception:
@@ -177,7 +187,7 @@ def main(stdscr):
         while True:
             stdscr.erase()
             height, width = stdscr.getmaxyx()
-            for i, (label, _cwd, action_fn) in enumerate(rows):
+            for i, (label, _values, action_fn) in enumerate(rows):
                 if i >= height:
                     break
                 if action_fn and i == hovered:

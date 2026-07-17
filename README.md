@@ -51,10 +51,12 @@ first time the panel runs. Edit or replace it freely:
 
 Each `command` is an argv list, not a shell string — no quoting needed, and
 each element is passed through exactly as one argument (so `"Google Chrome"`
-stays one argument, spaces and all). `{cwd}` is replaced with the
-workspace's directory at click time. Changes take effect within a few
-seconds, no reload needed. An invalid file falls back to the VS Code default
-and shows why at the top of the panel.
+stays one argument, spaces and all). `{cwd}` and `{workspace_id}` are
+replaced with the clicked workspace's directory and Herdr workspace ID at
+click time — useful for calling `herdr` itself, e.g.
+`["herdr", "workspace", "rename", "{workspace_id}", "renamed"]`. Changes
+take effect within a few seconds, no reload needed. An invalid file falls
+back to the VS Code default and shows why at the top of the panel.
 
 ## Requirements
 
