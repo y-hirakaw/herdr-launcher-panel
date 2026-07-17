@@ -1,35 +1,86 @@
 #!/usr/bin/env python3
-"""Herdr plugin pane: click a workspace under "Open in Finder" or "Open in
-VS Code" to launch it there. No keybinding or command to remember."""
+"""Herdr plugin pane: click a workspace under a configurable menu (default:
+"Open in Finder" / "Open in VS Code") to run a command against it there. No
+external dependencies (stdlib curses)."""
 
+import curses
 import json
 import os
+import platform
 import subprocess
 
-from rich.text import Text
-from textual.app import App, ComposeResult
-from textual.widgets import Tree
-
 HERDR_BIN = os.environ.get("HERDR_BIN_PATH", "herdr")
-REFRESH_SECONDS = 3.0
+REFRESH_MS = 3000
 
-def open_in_finder(cwd):
-    subprocess.run(["open", cwd])
+# Seeded into menu.json the first time the panel runs, if that file doesn't
+# exist yet — a starting point the user can edit or delete from then on.
+SEED_MENU = [
+    {"title": "💻 Open in VS Code (new window)", "command": ["code", "-n", "{cwd}"]},
+]
 
 
-def open_in_vscode(cwd):
-    """Prefer the `code` CLI shim (supports -n for a new window); fall back
-    to launching the app bundle directly if that shim isn't on PATH."""
+def builtin_open_entry():
+    """Open in the OS file browser. Fixed, not user-configurable: every
+    platform has exactly one, so there's nothing to choose between."""
+    system = platform.system()
+    if system == "Darwin":
+        return {"title": "📁 Open in Finder", "command": ["open", "{cwd}"]}
+    if system == "Windows":
+        return {"title": "📁 Open in Explorer", "command": ["explorer", "{cwd}"]}
+    return {"title": "📁 Open in File Manager", "command": ["xdg-open", "{cwd}"]}
+
+
+def seed_menu_file(path):
     try:
-        subprocess.run(["code", "-n", cwd], check=True)
-    except (OSError, subprocess.CalledProcessError):
-        subprocess.run(["open", "-na", "Visual Studio Code", "--args", cwd])
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(SEED_MENU, handle, indent=2, ensure_ascii=False)
+            handle.write("\n")
+    except OSError:
+        pass
 
 
-ACTIONS = {
-    "finder": ("📁 Open in Finder", open_in_finder),
-    "vscode": ("💻 Open in VS Code (new window)", open_in_vscode),
-}
+def valid_entries(menu):
+    return [
+        entry
+        for entry in menu
+        if isinstance(entry, dict)
+        and isinstance(entry.get("title"), str)
+        and isinstance(entry.get("command"), list)
+        and entry["command"]
+        and all(isinstance(part, str) for part in entry["command"])
+    ]
+
+
+def load_menu():
+    """User-configurable entries only; see `builtin_open_entry` for the
+    fixed Finder/Explorer/File Manager entry prepended in build_rows.
+
+    Returns (entries, error_message). error_message is None unless
+    menu.json exists but couldn't be used, in which case entries falls
+    back to SEED_MENU and error_message explains why.
+    """
+    config_dir = os.environ.get("HERDR_PLUGIN_CONFIG_DIR")
+    if not config_dir:
+        return SEED_MENU, None
+    path = os.path.join(config_dir, "menu.json")
+    if not os.path.isfile(path):
+        seed_menu_file(path)
+        return SEED_MENU, None
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            raw = handle.read()
+    except OSError as err:
+        return SEED_MENU, f"menu.json unreadable ({err.strerror or err}), using defaults"
+    try:
+        menu = json.loads(raw)
+    except json.JSONDecodeError as err:
+        return SEED_MENU, f"menu.json is invalid JSON (line {err.lineno}: {err.msg}), using defaults"
+    if not isinstance(menu, list):
+        return SEED_MENU, "menu.json must be a JSON array at the top level, using defaults"
+    entries = valid_entries(menu)
+    if not entries:
+        return SEED_MENU, "menu.json has no valid entries (need title + command), using defaults"
+    return entries, None
 
 
 def herdr_json(*args):
@@ -70,71 +121,103 @@ def workspace_cwd(workspace_id, panes):
     return None
 
 
-class OpenPanelApp(App):
-    CSS = """
-    Tree {
-        background: $surface;
-    }
-    """
+CARD_WIDTH = 32
 
-    def compose(self) -> ComposeResult:
-        yield Tree("Open", id="tree")
 
-    def on_mount(self) -> None:
-        tree = self.query_one(Tree)
-        tree.show_root = False
-        tree.guide_depth = 2
-        self.refresh_tree()
-        self.set_interval(REFRESH_SECONDS, self.refresh_tree)
+def build_rows():
+    """Flat list of (label, cwd, command_template). cwd/command_template are
+    None for section headers, borders, and blank spacer rows, which aren't
+    clickable."""
+    workspaces = sorted(list_workspaces(), key=lambda w: w.get("number", 0))
+    panes = list_panes()
+    rows = []
+    menu, error = load_menu()
+    if error:
+        rows.append((f"⚠ {error}", None, None))
+        rows.append(("", None, None))
+    for entry in [builtin_open_entry(), *menu]:
+        header = f"╭─ {entry['title']} "
+        header += "─" * max(CARD_WIDTH - len(header), 0)
+        rows.append((header, None, None))
+        for workspace in workspaces:
+            cwd = workspace_cwd(workspace["workspace_id"], panes)
+            label = workspace.get("label", workspace["workspace_id"])
+            marker = "● " if workspace.get("focused") else "  "
+            rows.append((f"│  {marker}{label}", cwd, entry["command"]))
+        rows.append(("╰" + "─" * (CARD_WIDTH - 1), None, None))
+        rows.append(("", None, None))
+    return rows
 
-    def refresh_tree(self) -> None:
-        try:
-            self._refresh_tree()
-        except Exception:
-            # Runs on a timer; a bad refresh should never take the panel down.
-            pass
 
-    def _refresh_tree(self) -> None:
-        tree = self.query_one(Tree)
-        workspaces = sorted(list_workspaces(), key=lambda w: w.get("number", 0))
-        panes = list_panes()
+def run_action(rows, index):
+    if not 0 <= index < len(rows):
+        return
+    _label, cwd, command_template = rows[index]
+    if not cwd or not command_template:
+        return
+    command = [part.replace("{cwd}", cwd) for part in command_template]
+    try:
+        subprocess.run(command)
+    except Exception:
+        pass  # a launch failure should never take the panel down
 
-        expanded_categories = {
-            node.data["action"]
-            for node in tree.root.children
-            if node.data and node.is_expanded
-        } or set(ACTIONS)  # first run: expand everything
 
-        tree.root.remove_children()
-        for action, (label, _fn) in ACTIONS.items():
-            category = tree.root.add(label, data={"kind": "category", "action": action})
-            if action in expanded_categories:
-                category.expand()
-            for workspace in workspaces:
-                workspace_id = workspace["workspace_id"]
-                cwd = workspace_cwd(workspace_id, panes)
-                display = workspace.get("label", workspace_id)
-                text = Text(display)
-                if workspace.get("focused"):
-                    text = Text(f"● {display}", style="bold")
-                category.add_leaf(
-                    text, data={"kind": "workspace", "action": action, "cwd": cwd}
-                )
+def main(stdscr):
+    curses.curs_set(0)
+    curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
+    print("\033[?1003h")  # ncurses' mousemask doesn't always push this itself
+    stdscr.timeout(REFRESH_MS)
+    stdscr.keypad(True)
 
-    def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
-        data = event.node.data
-        if not data or data.get("kind") != "workspace":
-            return
-        cwd = data.get("cwd")
-        if not cwd:
-            return
-        _label, action_fn = ACTIONS[data["action"]]
-        try:
-            action_fn(cwd)
-        except Exception:
-            # A launch failure should never take the whole panel down.
-            pass
+    rows = build_rows()
+    selected = next((i for i, r in enumerate(rows) if r[2]), 0)
+    hovered = None
+
+    try:
+        while True:
+            stdscr.erase()
+            height, width = stdscr.getmaxyx()
+            for i, (label, _cwd, action_fn) in enumerate(rows):
+                if i >= height:
+                    break
+                if action_fn and i == hovered:
+                    attr = curses.A_REVERSE
+                elif action_fn and i == selected:
+                    attr = curses.A_BOLD
+                else:
+                    attr = curses.A_NORMAL
+                stdscr.addnstr(i, 0, label[: max(width - 1, 0)], max(width - 1, 0), attr)
+            stdscr.refresh()
+
+            key = stdscr.getch()
+
+            if key == -1:  # timeout: nothing pressed, just refresh the data
+                rows = build_rows()
+                continue
+
+            if key == curses.KEY_RESIZE:
+                continue
+
+            if key == curses.KEY_MOUSE:
+                try:
+                    _id, _x, y, _z, bstate = curses.getmouse()
+                except curses.error:
+                    continue
+                clickable = 0 <= y < len(rows) and rows[y][2] is not None
+                hovered = y if clickable else None
+                if bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED):
+                    run_action(rows, y)
+                continue
+
+            if key == curses.KEY_UP:
+                selected = max(0, selected - 1)
+            elif key == curses.KEY_DOWN:
+                selected = min(len(rows) - 1, selected + 1)
+            elif key in (10, 13, curses.KEY_ENTER):
+                run_action(rows, selected)
+    finally:
+        print("\033[?1003l")  # stop reporting mouse motion on the way out
 
 
 if __name__ == "__main__":
-    OpenPanelApp().run()
+    curses.wrapper(main)

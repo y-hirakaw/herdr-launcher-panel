@@ -2,20 +2,21 @@ id = "open-panel"
 name = "Open Panel"
 version = "0.1.0"
 min_herdr_version = "0.7.4"
-description = "Click-to-open Finder / VS Code panel for Herdr workspaces, no keybinding to remember"
-platforms = ["macos"]
+description = "Click-to-open Finder / Explorer / VS Code panel for Herdr workspaces, no keybinding to remember"
+platforms = ["macos", "windows", "linux"]
 
 [[build]]
-command = ["sh", "setup.sh"]
+command = ["python3", "-m", "pip", "install", "--user", "windows-curses"]
+platforms = ["windows"]
 
 [[panes]]
 id = "open-panel"
 title = "Open"
 placement = "split"
-command = ["sh", "run.sh"]
+command = ["python3", "app.py"]
 
 [[actions]]
 id = "open"
-title = "Open Finder/VS Code panel"
+title = "Open Finder/Explorer/VS Code panel"
 contexts = ["global"]
-command = ["sh", "open_action.sh"]
+command = ["python3", "open_action.py"]
