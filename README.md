@@ -10,7 +10,8 @@ separate window and remember or type out a command.
 
 ![Launcher panel example](assets/panel.png)
 
-No dependencies beyond Python's standard library.
+No dependencies beyond Python's standard library (`windows-curses` is
+installed automatically, Windows only).
 
 ## Install
 
