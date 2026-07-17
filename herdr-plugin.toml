@@ -1,0 +1,21 @@
+id = "open-panel"
+name = "Open Panel"
+version = "0.1.0"
+min_herdr_version = "0.7.4"
+description = "Click-to-open Finder / VS Code panel for Herdr workspaces, no keybinding to remember"
+platforms = ["macos"]
+
+[[build]]
+command = ["sh", "setup.sh"]
+
+[[panes]]
+id = "open-panel"
+title = "Open"
+placement = "split"
+command = ["sh", "run.sh"]
+
+[[actions]]
+id = "open"
+title = "Open Finder/VS Code panel"
+contexts = ["global"]
+command = ["sh", "open_action.sh"]
