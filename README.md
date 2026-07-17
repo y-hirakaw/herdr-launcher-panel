@@ -1,9 +1,10 @@
 # herdr-launcher-panel
 
-A [Herdr](https://herdr.dev) plugin: a docked panel listing every workspace
-under "Open in Finder / Explorer" and whatever else you configure — VS Code
-ships as the default second entry, but any command works. Click a workspace
-to launch it there, no command to remember.
+A [Herdr](https://herdr.dev) plugin: a docked panel of commands you
+configure — "Open in Finder / Explorer" and VS Code ship as defaults, but
+any command works. Each is listed with every workspace nested under it;
+click one to run that command against that workspace, no command to
+remember or type.
 
 ![Launcher panel example](assets/panel.png)
 
