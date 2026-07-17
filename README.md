@@ -38,9 +38,15 @@ yet.
 ## Customize the menu
 
 "Open in Finder/Explorer/File Manager" is fixed (there's only ever one per
-OS). Everything else comes from `menu.json` in the plugin's config directory
-(`herdr plugin config-dir launcher-panel`), seeded with a VS Code entry the
-first time the panel runs. Edit or replace it freely:
+OS). Everything else comes from `menu.json` in the plugin's config
+directory. Find that directory and edit `menu.json` there:
+
+```bash
+herdr plugin config-dir launcher-panel
+```
+
+It's seeded with a VS Code entry the first time the panel runs; edit or
+replace it freely:
 
 ```json
 [
@@ -58,12 +64,20 @@ click time — useful for calling `herdr` itself, e.g.
 take effect within a few seconds, no reload needed. An invalid file falls
 back to the VS Code default and shows why at the top of the panel.
 
+## Command confirmation
+
 `menu.json` runs whatever you put in it — treat it like your shell profile,
 not a sandboxed setting. The first time you click a given command (any
 workspace), the panel shows exactly what it's about to run and asks for
 confirmation; after that, that specific command runs immediately with no
 further prompt. Adding a new command to `menu.json` gets its own first-run
 confirmation, independent of ones you've already approved.
+
+Confirmations are remembered in `confirmed_commands.json`, next to
+`menu.json` in the same config directory. To make a command ask again —
+after editing it, or if you just want the prompt back — delete that file
+(clears every confirmation) or remove the matching entry from the JSON
+array inside it (clears just that one).
 
 ## Requirements
 
