@@ -26,11 +26,6 @@ command = "launcher-panel.open"
 description = "open Finder/VS Code panel"
 ```
 
-Avoid `ctrl+alt+<letter>` here if your terminal is Alacritty: it drops the
-Alt modifier when combined with Ctrl, so Herdr never sees it as anything
-but plain `ctrl+<letter>`. A plain `prefix+<key>` binding sidesteps this
-entirely, since Herdr owns the very next keypress outright.
-
 Calling the action again while the panel is already open opens a second
 one rather than focusing the existing pane — known rough edge, not fixed
 yet.
