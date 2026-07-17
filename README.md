@@ -10,8 +10,8 @@ separate window and remember or type out a command.
 
 ![Launcher panel example](assets/panel.png)
 
-No dependencies beyond Python's standard library (`windows-curses` is
-installed automatically, Windows only).
+Workspace labels aren't paths, so hovering a row shows its actual directory
+on the bottom line before you click.
 
 ## Install
 
