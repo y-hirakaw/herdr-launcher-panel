@@ -3,10 +3,11 @@
 A [Herdr](https://herdr.dev) plugin: a docked panel listing every workspace
 under "Open in Finder / Explorer" and whatever else you configure — VS Code
 ships as the default second entry, but any command works. Click a workspace
-to launch it there, no command to remember. No dependencies beyond Python's
-standard library.
+to launch it there, no command to remember.
 
 ![Launcher panel example](assets/panel.png)
+
+No dependencies beyond Python's standard library.
 
 ## Install
 
