@@ -1,10 +1,10 @@
 # herdr-launcher-panel
 
 A [Herdr](https://herdr.dev) plugin: a docked panel listing every workspace
-under "Open in Finder" / "Explorer" / "File Manager" and "Open in VS Code
-(new window)". Click one to launch it there — no command to remember. No
-dependencies beyond Python's standard library (`windows-curses` is installed
-automatically, Windows only).
+under "Open in Finder / Explorer" and whatever else you configure — VS Code
+ships as the default second entry, but any command works. Click a workspace
+to launch it there, no command to remember. No dependencies beyond Python's
+standard library.
 
 ![Launcher panel example](assets/panel.png)
 
