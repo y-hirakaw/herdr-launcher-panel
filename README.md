@@ -58,9 +58,10 @@ click time — useful for calling `herdr` itself, e.g.
 take effect within a few seconds, no reload needed. An invalid file falls
 back to the VS Code default and shows why at the top of the panel.
 
-`menu.json` runs whatever you put in it, no confirmation prompt — treat it
-like your shell profile, not a sandboxed setting. A misclick runs the row
-under the cursor immediately.
+`menu.json` runs whatever you put in it, no per-click confirmation — treat
+it like your shell profile, not a sandboxed setting. A misclick runs the
+row under the cursor immediately. The panel shows a one-time warning about
+this the very first time it opens; it won't ask again after that.
 
 ## Requirements
 

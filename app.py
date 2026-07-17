@@ -172,8 +172,61 @@ def run_action(rows, index):
         pass  # a launch failure should never take the panel down
 
 
+CONSENT_MARKER = ".consented"
+
+
+def has_consented(config_dir):
+    if not config_dir:
+        return True  # nowhere to persist consent; don't block on it
+    return os.path.isfile(os.path.join(config_dir, CONSENT_MARKER))
+
+
+def record_consent(config_dir):
+    if not config_dir:
+        return
+    try:
+        with open(os.path.join(config_dir, CONSENT_MARKER), "w", encoding="utf-8"):
+            pass
+    except OSError:
+        pass
+
+
+def show_consent_prompt(stdscr):
+    """Shown once, before menu.json can ever run a command. Returns False if
+    the user quit instead of continuing."""
+    stdscr.erase()
+    stdscr.keypad(True)
+    stdscr.nodelay(False)
+    stdscr.timeout(-1)
+    for i, line in enumerate(
+        [
+            "Launcher Panel",
+            "",
+            "Clicking a row runs the command configured for it — instantly,",
+            "no confirmation. A misclick runs whatever's under the cursor.",
+            "menu.json is user-editable; treat it like a shell profile.",
+            "",
+            "This only shows once. Enter to continue, q to quit.",
+        ]
+    ):
+        stdscr.addstr(i, 0, line)
+    stdscr.refresh()
+    while True:
+        key = stdscr.getch()
+        if key in (10, 13, curses.KEY_ENTER):
+            return True
+        if key in (ord("q"), 27):
+            return False
+
+
 def main(stdscr):
     curses.curs_set(0)
+    config_dir = os.environ.get("HERDR_PLUGIN_CONFIG_DIR")
+    if not has_consented(config_dir):
+        if not show_consent_prompt(stdscr):
+            return
+        record_consent(config_dir)
+
     curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
     print("\033[?1003h")  # ncurses' mousemask doesn't always push this itself
     stdscr.timeout(REFRESH_MS)
