@@ -13,6 +13,9 @@
   to split whichever pane was focused, which could land it in the middle of
   an existing layout) and sizes itself to roughly a constant fraction of the
   tab's width regardless of how many panes are already open.
+- The hover path line now collapses the home directory to `~` and spans two
+  lines, bottom-aligned, instead of always sitting one row up and cutting
+  off the end of deep paths.
 
 ## 0.1.0
 

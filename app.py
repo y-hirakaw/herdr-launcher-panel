@@ -11,6 +11,31 @@ import subprocess
 
 HERDR_BIN = os.environ.get("HERDR_BIN_PATH", "herdr")
 REFRESH_MS = 3000
+HOME = os.path.expanduser("~")
+PATH_LINES = 2
+
+
+def display_path_lines(path, max_width, max_lines):
+    """Hovered cwd, wrapped across max_lines lines of max_width each and
+    bottom-aligned (blank lines go first, so a short path always sits on
+    the last line instead of floating above it). Home directory collapses
+    to `~`; if it still doesn't fit, the front is cut (marked with a
+    leading …) since the tail is what tells directories apart, not the
+    common prefix."""
+    if not path or max_width <= 0:
+        return [""] * max_lines
+    if HOME and path == HOME:
+        display = "~"
+    elif HOME and path.startswith(HOME + os.sep):
+        display = "~" + path[len(HOME) :]
+    else:
+        display = path
+    budget = max_width * max_lines
+    if len(display) > budget:
+        display = "…" + display[-max(budget - 1, 0) :]
+    lines = [display[i : i + max_width] for i in range(0, len(display), max_width)]
+    lines = [""] * max(max_lines - len(lines), 0) + lines
+    return lines[-max_lines:] if len(lines) > max_lines else lines
 
 # The panel's own pane. It's opened as a split inside whatever tab you
 # invoked it from, so it shares that tab's/workspace's other panes — but its
@@ -319,7 +344,8 @@ def main(stdscr):
         while True:
             stdscr.erase()
             height, width = stdscr.getmaxyx()
-            content_height = max(height - 1, 0)  # bottom row reserved for the path
+            path_lines = min(PATH_LINES, height)
+            content_height = max(height - path_lines, 0)  # bottom rows reserved for the path
             for i, (label, _values, action_fn, focused) in enumerate(rows):
                 if i >= content_height:
                     break
@@ -330,10 +356,11 @@ def main(stdscr):
                     attr |= curses.A_REVERSE
                 stdscr.addnstr(i, 0, label[: max(width - 1, 0)], max(width - 1, 0), attr)
 
-            if height > 0:
+            if path_lines > 0:
                 values = rows[hovered][1] if hovered is not None and 0 <= hovered < len(rows) else None
                 path = (values or {}).get("cwd", "") if values else ""
-                stdscr.addnstr(height - 1, 0, path[: max(width - 1, 0)], max(width - 1, 0))
+                for j, line in enumerate(display_path_lines(path, max(width - 1, 0), path_lines)):
+                    stdscr.addnstr(content_height + j, 0, line, max(width - 1, 0))
             stdscr.refresh()
 
             key = stdscr.getch()
