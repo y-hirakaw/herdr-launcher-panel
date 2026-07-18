@@ -12,6 +12,12 @@ import subprocess
 HERDR_BIN = os.environ.get("HERDR_BIN_PATH", "herdr")
 REFRESH_MS = 3000
 
+# The panel's own pane. It's opened as a split inside whatever tab you
+# invoked it from, so it shares that tab's/workspace's other panes — but its
+# own cwd is the plugin's source directory, not anything the user opened.
+# Drop just this one pane so it doesn't show up as a bogus nested entry.
+SELF_PANE_ID = os.environ.get("HERDR_PANE_ID")
+
 # Seeded into menu.json the first time the panel runs, if that file doesn't
 # exist yet — a starting point the user can edit or delete from then on.
 SEED_MENU = [
@@ -112,43 +118,87 @@ def list_panes():
     return response.get("result", {}).get("panes", [])
 
 
-def workspace_cwd(workspace_id, panes):
-    """Herdr's workspace list doesn't expose a cwd directly; use the first
-    pane belonging to that workspace as a stand-in."""
+def list_tabs():
+    response = herdr_json("tab", "list")
+    if not response:
+        return []
+    return response.get("result", {}).get("tabs", [])
+
+
+def workspace_path_groups(workspace_id, panes, tab_labels):
+    """Distinct cwds across a workspace's panes/tabs, each paired with the
+    tab label(s) that point to it, in first-seen order. Usually one group;
+    a workspace can have tabs/panes open on different directories."""
+    groups = []
+    index_by_cwd = {}
     for pane in panes:
-        if pane.get("workspace_id") == workspace_id and pane.get("cwd"):
-            return pane["cwd"]
-    return None
+        if pane.get("workspace_id") != workspace_id:
+            continue
+        cwd = pane.get("cwd")
+        if not cwd:
+            continue
+        if cwd not in index_by_cwd:
+            index_by_cwd[cwd] = len(groups)
+            groups.append([cwd, []])
+        label = tab_labels.get(pane.get("tab_id"), "")
+        labels = groups[index_by_cwd[cwd]][1]
+        if label and label not in labels:
+            labels.append(label)
+    return groups
+
+
+def truncate(text, max_len):
+    if len(text) <= max_len:
+        return text
+    return text[: max(max_len - 1, 0)] + "…"
 
 
 CARD_WIDTH = 32
+NESTED_PREFIX = "│    ↳ "
+NESTED_LABEL_MAX = max(CARD_WIDTH - len(NESTED_PREFIX), 8)
 
 
 def build_rows():
-    """Flat list of (label, values, command_template). values/command_template
-    are None for section headers, borders, and blank spacer rows, which
-    aren't clickable. values is {"cwd": ..., "workspace_id": ...} otherwise —
-    both are available as {cwd}/{workspace_id} placeholders in commands."""
+    """Flat list of (label, values, command_template, focused).
+    values/command_template are None for section headers, borders, and blank
+    spacer rows, which aren't clickable. values is
+    {"cwd": ..., "workspace_id": ...} otherwise — both are available as
+    {cwd}/{workspace_id} placeholders in commands. focused marks rows
+    belonging to herdr's currently-focused workspace, for highlighting."""
     workspaces = sorted(list_workspaces(), key=lambda w: w.get("number", 0))
-    panes = list_panes()
+    panes = [p for p in list_panes() if p.get("pane_id") != SELF_PANE_ID]
+    tab_labels = {tab["tab_id"]: tab.get("label", "") for tab in list_tabs()}
     rows = []
     menu, error = load_menu()
     if error:
-        rows.append((f"⚠ {error}", None, None))
-        rows.append(("", None, None))
+        rows.append((f"⚠ {error}", None, None, False))
+        rows.append(("", None, None, False))
     for entry in [builtin_open_entry(), *menu]:
         header = f"╭─ {entry['title']} "
         header += "─" * max(CARD_WIDTH - len(header), 0)
-        rows.append((header, None, None))
+        rows.append((header, None, None, False))
         for workspace in workspaces:
             workspace_id = workspace["workspace_id"]
-            cwd = workspace_cwd(workspace_id, panes)
+            groups = workspace_path_groups(workspace_id, panes, tab_labels)
             label = workspace.get("label", workspace_id)
-            marker = "● " if workspace.get("focused") else "  "
-            values = {"cwd": cwd, "workspace_id": workspace_id}
-            rows.append((f"│  {marker}{label}", values, entry["command"]))
-        rows.append(("╰" + "─" * (CARD_WIDTH - 1), None, None))
-        rows.append(("", None, None))
+            focused = bool(workspace.get("focused"))
+            if len(groups) <= 1:
+                cwd = groups[0][0] if groups else None
+                values = {"cwd": cwd, "workspace_id": workspace_id}
+                rows.append((f"│  {label}", values, entry["command"], focused))
+            else:
+                # Multiple tabs/panes on different directories: which one
+                # would run is ambiguous, so make the workspace itself a
+                # header and list each directory as its own row instead.
+                rows.append((f"│  {label}", None, None, focused))
+                for cwd, tabs in groups:
+                    values = {"cwd": cwd, "workspace_id": workspace_id}
+                    name = os.path.basename(cwd.rstrip("/")) or cwd
+                    tag = ",".join(tabs) if tabs else "?"
+                    display = truncate(f"{tag}: {name}", NESTED_LABEL_MAX)
+                    rows.append((f"{NESTED_PREFIX}{display}", values, entry["command"], focused))
+        rows.append(("╰" + "─" * (CARD_WIDTH - 1), None, None, False))
+        rows.append(("", None, None, False))
     return rows
 
 
@@ -220,7 +270,7 @@ def show_run_confirm_prompt(stdscr, command):
 def run_action(stdscr, config_dir, rows, index):
     if not 0 <= index < len(rows):
         return
-    _label, values, command_template = rows[index]
+    _label, values, command_template, _focused = rows[index]
     if not values or not command_template:
         return
     cwd = values.get("cwd")
@@ -248,6 +298,14 @@ def main(stdscr):
     curses.curs_set(0)
     config_dir = os.environ.get("HERDR_PLUGIN_CONFIG_DIR")
 
+    if curses.has_colors():
+        curses.start_color()
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_CYAN, -1)
+        focused_attr = curses.color_pair(1)
+    else:
+        focused_attr = curses.A_BOLD
+
     curses.mousemask(curses.ALL_MOUSE_EVENTS | curses.REPORT_MOUSE_POSITION)
     print("\033[?1003h")  # ncurses' mousemask doesn't always push this itself
     stdscr.timeout(REFRESH_MS)
@@ -261,16 +319,21 @@ def main(stdscr):
         while True:
             stdscr.erase()
             height, width = stdscr.getmaxyx()
-            for i, (label, _values, action_fn) in enumerate(rows):
-                if i >= height:
+            content_height = max(height - 1, 0)  # bottom row reserved for the path
+            for i, (label, _values, action_fn, focused) in enumerate(rows):
+                if i >= content_height:
                     break
+                attr = focused_attr if focused else curses.A_NORMAL
+                if action_fn and i == selected:
+                    attr |= curses.A_BOLD
                 if action_fn and i == hovered:
-                    attr = curses.A_REVERSE
-                elif action_fn and i == selected:
-                    attr = curses.A_BOLD
-                else:
-                    attr = curses.A_NORMAL
+                    attr |= curses.A_REVERSE
                 stdscr.addnstr(i, 0, label[: max(width - 1, 0)], max(width - 1, 0), attr)
+
+            if height > 0:
+                values = rows[hovered][1] if hovered is not None and 0 <= hovered < len(rows) else None
+                path = (values or {}).get("cwd", "") if values else ""
+                stdscr.addnstr(height - 1, 0, path[: max(width - 1, 0)], max(width - 1, 0))
             stdscr.refresh()
 
             key = stdscr.getch()
@@ -287,7 +350,7 @@ def main(stdscr):
                     _id, _x, y, _z, bstate = curses.getmouse()
                 except curses.error:
                     continue
-                clickable = 0 <= y < len(rows) and rows[y][2] is not None
+                clickable = 0 <= y < min(len(rows), content_height) and rows[y][2] is not None
                 hovered = y if clickable else None
                 if bstate & (curses.BUTTON1_CLICKED | curses.BUTTON1_PRESSED):
                     run_action(stdscr, config_dir, rows, y)

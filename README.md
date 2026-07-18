@@ -11,7 +11,10 @@ separate window and remember or type out a command.
 ![Launcher panel example](assets/panel.png)
 
 Workspace labels aren't paths, so hovering a row shows its actual directory
-on the bottom line before you click.
+on the bottom line before you click. If a workspace has tabs or panes open
+on different directories, it expands into one row per directory instead of
+a single ambiguous one. The workspace currently focused in Herdr is
+highlighted so you can tell where you are.
 
 ## Install
 
@@ -30,6 +33,10 @@ type = "plugin_action"
 command = "launcher-panel.open"
 description = "open Finder/VS Code panel"
 ```
+
+It opens as a slim pane at the right edge of the current tab, sized to
+roughly a constant fraction of the tab's width no matter how many panes
+are already open.
 
 Calling the action again while the panel is already open opens a second
 one rather than focusing the existing pane — known rough edge, not fixed

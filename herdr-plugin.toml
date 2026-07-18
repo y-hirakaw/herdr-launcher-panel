@@ -1,6 +1,6 @@
 id = "launcher-panel"
 name = "Launcher Panel"
-version = "0.1.0"
+version = "0.3.0"
 min_herdr_version = "0.7.4"
 description = "Click-to-launch Finder / Explorer / VS Code (and anything else you configure) per Herdr workspace, no keybinding to remember"
 platforms = ["macos", "windows", "linux"]
