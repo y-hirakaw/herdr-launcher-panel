@@ -1,6 +1,6 @@
-id = "launcher-panel"
-name = "Launcher Panel"
-version = "0.3.0"
+id = "launcher-pane"
+name = "Launcher Pane"
+version = "0.4.0"
 min_herdr_version = "0.7.4"
 description = "Click-to-launch Finder / Explorer / VS Code (and anything else you configure) per Herdr workspace, no keybinding to remember"
 platforms = ["macos", "windows", "linux"]
@@ -17,6 +17,6 @@ command = ["python3", "app.py"]
 
 [[actions]]
 id = "open"
-title = "Open Finder/Explorer/VS Code panel"
+title = "Open Finder/Explorer/VS Code launcher"
 contexts = ["global"]
 command = ["python3", "open_action.py"]

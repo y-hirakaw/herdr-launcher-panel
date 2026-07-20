@@ -37,13 +37,13 @@ def display_path_lines(path, max_width, max_lines):
     lines = [""] * max(max_lines - len(lines), 0) + lines
     return lines[-max_lines:] if len(lines) > max_lines else lines
 
-# The panel's own pane. It's opened as a split inside whatever tab you
+# The launcher's own pane. It's opened as a split inside whatever tab you
 # invoked it from, so it shares that tab's/workspace's other panes — but its
 # own cwd is the plugin's source directory, not anything the user opened.
 # Drop just this one pane so it doesn't show up as a bogus nested entry.
 SELF_PANE_ID = os.environ.get("HERDR_PANE_ID")
 
-# Seeded into menu.json the first time the panel runs, if that file doesn't
+# Seeded into menu.json the first time the launcher runs, if that file doesn't
 # exist yet — a starting point the user can edit or delete from then on.
 SEED_MENU = [
     {"title": "💻 Open in VS Code (new window)", "command": ["code", "-n", "{cwd}"]},
@@ -316,7 +316,7 @@ def run_action(stdscr, config_dir, rows, index):
     try:
         subprocess.run(command)
     except Exception:
-        pass  # a launch failure should never take the panel down
+        pass  # a launch failure should never take the launcher down
 
 
 def main(stdscr):

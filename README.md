@@ -1,6 +1,6 @@
-# herdr-launcher-panel
+# herdr-launcher-pane
 
-A [Herdr](https://herdr.dev) plugin: a docked panel that collects whatever
+A [Herdr](https://herdr.dev) plugin: a docked pane that collects whatever
 commands you configure. "Open in Finder / Explorer" and VS Code are built
 in by default — add your own commands on top.
 
@@ -8,7 +8,7 @@ Every workspace is listed nested under each command; click one to run it
 against that workspace. No more breaking away from your agent to open a
 separate window and remember or type out a command.
 
-![Launcher panel example](assets/panel.png)
+![Launcher pane example](assets/pane.png)
 
 Workspace labels aren't paths, so hovering a row shows its actual directory
 on the bottom line before you click. If a workspace has tabs or panes open
@@ -19,10 +19,10 @@ highlighted so you can tell where you are.
 ## Install
 
 ```bash
-herdr plugin install y-hirakaw/herdr-launcher-panel
+herdr plugin install y-hirakaw/herdr-launcher-pane
 ```
 
-## Open the panel
+## Open the launcher
 
 Bind a key to the `open` action:
 
@@ -30,15 +30,15 @@ Bind a key to the `open` action:
 [[keys.command]]
 key = "prefix+o"
 type = "plugin_action"
-command = "launcher-panel.open"
-description = "open Finder/VS Code panel"
+command = "launcher-pane.open"
+description = "open Finder/VS Code launcher"
 ```
 
 It opens as a slim pane at the right edge of the current tab, sized to
 roughly a constant fraction of the tab's width no matter how many panes
 are already open.
 
-Calling the action again while the panel is already open opens a second
+Calling the action again while the launcher is already open opens a second
 one rather than focusing the existing pane — known rough edge, not fixed
 yet.
 
@@ -49,10 +49,10 @@ OS). Everything else comes from `menu.json` in the plugin's config
 directory. Find that directory and edit `menu.json` there:
 
 ```bash
-herdr plugin config-dir launcher-panel
+herdr plugin config-dir launcher-pane
 ```
 
-It's seeded with a VS Code entry the first time the panel runs; edit or
+It's seeded with a VS Code entry the first time the launcher runs; edit or
 replace it freely:
 
 ```json
@@ -69,13 +69,13 @@ replaced with the clicked workspace's directory and Herdr workspace ID at
 click time — useful for calling `herdr` itself, e.g.
 `["herdr", "workspace", "rename", "{workspace_id}", "renamed"]`. Changes
 take effect within a few seconds, no reload needed. An invalid file falls
-back to the VS Code default and shows why at the top of the panel.
+back to the VS Code default and shows why at the top of the launcher.
 
 ## Command confirmation
 
 `menu.json` runs whatever you put in it — treat it like your shell profile,
 not a sandboxed setting. The first time you click a given command (any
-workspace), the panel shows exactly what it's about to run and asks for
+workspace), the launcher shows exactly what it's about to run and asks for
 confirmation; after that, that specific command runs immediately with no
 further prompt. Adding a new command to `menu.json` gets its own first-run
 confirmation, independent of ones you've already approved.

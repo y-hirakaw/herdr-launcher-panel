@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
-"""Herdr plugin action: open the panel pane at the right edge of the current
-tab, sized to roughly a constant fraction of the tab's total width.
+"""Herdr plugin action: open the launcher pane at the right edge of the
+current tab, sized to roughly a constant fraction of the tab's total width.
 
-The panel is split off from whichever pane is currently the tab's rightmost
-one (by `pane layout` geometry), not the focused pane — so it always lands
-at the right edge, even when a different pane was focused when the action
-ran. `pane split` always starts at a 50/50 ratio of *that source pane's*
-own width, not the whole tab, so how much resize is needed afterward
-depends on how wide the source pane already was: the more panes already
-open, the narrower it tends to be, and a fixed resize amount would leave
-the panel far smaller than intended. The amount is instead computed from
-the source pane's pre-split width and the tab's total width, so the panel
-ends up close to TARGET_WIDTH_FRACTION of the tab regardless of how many
-panes were already there.
+The launcher pane is split off from whichever pane is currently the tab's
+rightmost one (by `pane layout` geometry), not the focused pane — so it
+always lands at the right edge, even when a different pane was focused when
+the action ran. `pane split` always starts at a 50/50 ratio of *that source
+pane's* own width, not the whole tab, so how much resize is needed
+afterward depends on how wide the source pane already was: the more panes
+already open, the narrower it tends to be, and a fixed resize amount would
+leave the launcher pane far smaller than intended. The amount is instead
+computed from the source pane's pre-split width and the tab's total width,
+so the launcher pane ends up close to TARGET_WIDTH_FRACTION of the tab
+regardless of how many panes were already there.
 
-The resize targets that same source pane (not the panel itself). herdr's
-`pane resize --direction right` adjusts whichever split sits immediately to
-the target pane's right, falling back to its left split only if there is no
-right neighbor; the source pane always has the panel as its right neighbor
-right after the split, so resizing it is stable regardless of layout.
-Resizing the panel pane instead only happened to work when the panel was
-the rightmost pane overall — with more panes to its right, `--direction
-right` would find and grow the panel/next-pane split instead, shrinking an
-unrelated neighbor."""
+The resize targets that same source pane (not the launcher pane itself).
+herdr's `pane resize --direction right` adjusts whichever split sits
+immediately to the target pane's right, falling back to its left split only
+if there is no right neighbor; the source pane always has the launcher pane
+as its right neighbor right after the split, so resizing it is stable
+regardless of layout. Resizing the launcher pane instead only happened to
+work when it was the rightmost pane overall — with more panes to its
+right, `--direction right` would find and grow the launcher/next-pane split
+instead, shrinking an unrelated neighbor."""
 
 import json
 import os
@@ -34,7 +34,7 @@ TARGET_WIDTH_FRACTION = 0.15
 
 def find_resize_target():
     """(pane_id, pane_width, tab_width) for the current tab's rightmost pane
-    (by `pane layout` rects) — the pane the panel will be split off from.
+    (by `pane layout` rects) — the pane the launcher will be split off from.
     All three are None if the lookup fails for any reason."""
     try:
         result = subprocess.run(
@@ -79,7 +79,7 @@ def main():
         "pane",
         "open",
         "--plugin",
-        "launcher-panel",
+        "launcher-pane",
         "--entrypoint",
         "launcher",
         "--placement",
@@ -101,8 +101,8 @@ def main():
     amount = 0.35
     if source_width and tab_width:
         # split_pane starts the new pane at ratio 0.5 of source_width, not
-        # tab_width; solve for the additional ratio that brings the panel
-        # down to TARGET_WIDTH_FRACTION of tab_width. Clamped to keep the
+        # tab_width; solve for the additional ratio that brings the launcher
+        # pane down to TARGET_WIDTH_FRACTION of tab_width. Clamped to keep the
         # underlying split ratio (0.5 + amount) inside herdr's 0.1-0.9 range.
         amount = 0.5 - (TARGET_WIDTH_FRACTION * tab_width / source_width)
         amount = max(-0.4, min(0.4, amount))
